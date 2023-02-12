@@ -1,40 +1,53 @@
-class Api {
-  constructor(name) {
-    this.url = "https://sb-cats.herokuapp.com/api/2/";
-    this.name = name;
+const CONFIG_API = {
+  url: "https://sb-cats.herokuapp.com/api/2/tatarnikovatatiana",
+  // url: "https://cats.petiteweb.dev/api/single/tatarnikovatatiana",
+  headers: {
+    "Content-type": "application/json"
   }
-  getCats() {
-    return fetch(`${this.url}${this.name}/show`);
+};
+
+class API {
+  constructor(config) {
+    this._url = config.url;
+    this._headers = config.headers;
   }
-  getCat(id) {
-    return fetch(`${this.url}${this.name}/show/${id}`);
+  _onResponse(res) {
+    return res.ok ? res.json() : Promise.reject({ ...res, message: "error" });
   }
-  getIds() {
-    return fetch(`${this.url}${this.name}/ids`);
+  getAllCats() {
+    //получить массив всех существующих id
+    return fetch(`${this._url}/show`, {
+      method: "GET",
+    }).then(this._onResponse);
   }
-  addCat(body) {
-    return fetch(`${this.url}${this.name}/add`, {
+  getCatById(id) {
+    /// отобразить конкретного котика
+    return fetch(`${this._url}/show/${id}`, {
+      method: "GET",
+    }).then(this._onResponse);
+  }
+  addNewCat(data) {
+    //добавить нового кота
+    return fetch(`${this._url}/add`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+      headers: this._headers,
+      body: JSON.stringify(data),
+    }).then(this._onResponse);
   }
-  updCat(id, body) {
-    return fetch(`${this.url}${this.name}/update/${id}`, {
+  updateCatById(id, data) {
+    //изменить информацию о коте
+    return fetch(`${this._url}/update/${id}`, {
       method: "PUT",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+      headers: this._headers,
+      body: JSON.stringify(data),
+    }).then(this._onResponse);
   }
-  delCat(id) {
-    return fetch(`${this.url}${this.name}/delete/${id}`, {
+  deleteCatById(id) {
+    //удалить кота по id
+    return fetch(`${this._url}/delete/${id}`, {
       method: "DELETE",
-    });
+    }).then(this._onResponse);
   }
 }
+
+export const api = new API(CONFIG_API);

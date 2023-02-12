@@ -1,69 +1,175 @@
-let main = document.querySelector("main");
-cats.forEach(function (cat) {
-  let card = `<div class="${
-    cat.favourite ? "card like" : "card"
-  }" style="background-image: url(${cat.img_link})">
-          <span>${cat.name}</span>
-          </div>`;
+import { Card } from "./card.js";
+import { Popup } from "./popup.js";
+import { PopupImage } from "./popup-image.js";
+import { CatsInfo } from "./cats-info.js";
+import { api } from "./api.js";
 
-  main.innerHTML += card;
-});
+const btnOpenPopupForm = document.querySelector("#add");
+const btnLoginOpenPopup = document.querySelector("#login");
+const formAddCat = document.querySelector("#popup-form-cat");
+const formLogin = document.querySelector("#popup-form-login");
+const sectionCard = document.querySelector(".cards");
 
-let cards = document.querySelectorAll(".card");
-for (let i = 0, cnt = cards.length; i < cnt; i++) {
-  const width = cards[i].offsetWidth;
-  cards[i].style.height = width * 0.6 + "px";
+//создаем экземпляры классов
+const popupAddCat = new Popup("popup-add-cats");
+popupAddCat.setEventListener();
+
+const popupLogin = new Popup("popup-login");
+popupLogin.setEventListener();
+
+const popupCatInfo = new Popup("popup-cat-info");
+popupCatInfo.setEventListener();
+
+const popupImage = new PopupImage("popup-image");
+popupImage.setEventListener();
+
+const catsInfoInstance = new CatsInfo("#cats-info-template", handleDeleteCat);
+const catsInfoElement = catsInfoInstance.getElement();
+
+//функция добавления кота
+function createCat(dataCat) {
+  const cardInstance = new Card(
+    dataCat,
+    "#card-template",
+    handleCatImage,
+    handleCatTitle
+  );
+  const newCardElement = cardInstance.getElement();
+  sectionCard.append(newCardElement);
 }
 
-let addBtn = document.querySelector("#add");
-let popupForm = document.querySelector("#popup-form");
-let closePopupForm = popupForm.querySelector(".popup-close");
-addBtn.addEventListener("click", (e) => {
-  e.preventDefault();
-  if (!popupForm.classList.contains("active")) {
-    popupForm.classList.add("active");
-    popupForm.parentElement.classList.add("active");
-  }
-});
-closePopupForm.addEventListener("click", () => {
-  popupForm.classList.remove("active");
-  popupForm.parentElement.classList.remove("active");
-});
+//формируем объект данных из формы для отправки на сервер
+function serializeForm(elements) {
+  const formData = {};
 
-const api = new Api("tatarnikovatatiana");
+  elements.forEach((input) => {
+    if (input.type === "submit") return;
 
-let form = document.forms[0];
-form.img_link.addEventListener("change", (e) => {
-  form.firstElementChild.style.backgroundImage = `url(${e.target.value})`;
-});
-form.img_link.addEventListener("input", (e) => {
-  form.firstElementChild.style.backgroundImage = `url(${e.target.value})`;
-});
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  let body = {};
-  for (let i = 0; i < form.elements.length; i++) {
-    let inp = form.elements[i];
-    if (inp.type === "checkbox") {
-      body[inp.name] = inp.checked;
-    } else if (inp.name && inp.value) {
-      if (inp.type === "number") {
-        body[inp.name] = +inp.value;
-      } else {
-        body[inp.name] = inp.value;
-      }
+    if (input.type !== "checkbox") {
+      formData[input.name] = input.value;
     }
-  }
-  console.log(body);
-  api
-    .addCat(body)
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.message === "ok") {
-        form.reset();
-        closePopupForm.click();
-      } else {
-        console.log(data);
-      }
+    if (input.type === "checkbox") {
+      formData[input.name] = input.checked;
+    }
+  });
+
+  return formData;
+}
+
+//задаем интервал обновления local storage
+function setDataRefrash(minutes, key) {
+  const setTime = new Date(new Date().getTime() + minutes * 60000);
+  localStorage.setItem(key, setTime);
+}
+
+//проверяет, нужно взять котов из базы или из local storage
+function checkLocalStorage() {
+  const localData = JSON.parse(localStorage.getItem("cats"));
+  const getTimeExpires = localStorage.getItem("catsRefrash");
+
+  if (localData && localData.length && new Date() < new Date(getTimeExpires)) {
+    localData.forEach((catData) => {
+      createCat(catData);
     });
-});
+  } else {
+    api.getAllCats().then((data) => {
+      data.forEach((catData) => {
+        createCat(catData);
+      });
+      updateLocalStorage(data, { type: "ALL_CATS" });
+    });
+  }
+}
+
+// хэндлер для сбора данных из формы и отправки на сервер
+function handleFormAddCat(e) {
+  e.preventDefault();
+
+  const elementsFromCat = [...formAddCat.elements];
+  const dataFormCat = serializeForm(elementsFromCat);
+
+  api.addNewCat(dataFormCat).then(() => {
+    console.log("dataFormCat", dataFormCat);
+    createCat(dataFormCat);
+    updateLocalStorage(dataFormCat, { type: "ADD_CAT" });
+  });
+
+  popupAddCat.close();
+}
+
+function handleFormLogin(e) {
+  e.preventDefault();
+
+  const loginData = [...formLogin.elements];
+  const serializeData = serializeForm(loginData);
+
+  Cookies.set("email", `email=${serializeData.email}`);
+  btnOpenPopupForm.classList.remove("visually-hidden");
+  btnLoginOpenPopup.classList.add("visually-hidden");
+
+  popupLogin.close();
+}
+
+function handleCatImage(dataCat) {
+  popupImage.open(dataCat);
+}
+
+function handleCatTitle(cardInstance) {
+  catsInfoInstance.setData(cardInstance);
+  popupCatInfo.setContent(catsInfoElement);
+  popupCatInfo.open();
+}
+
+function handleDeleteCat(cardInstance) {
+  api.deleteCatById(cardInstance.getId()).then(() => {
+    cardInstance.deleteView();
+
+    updateLocalStorage(cardInstance.getId(), { type: "DELETE_CAT" });
+    popupCatInfo.close();
+  });
+}
+
+//обновление local storage
+function updateLocalStorage(data, action) {
+  const oldStorage = JSON.parse(localStorage.getItem("cats"));
+
+  switch (action.type) {
+    case "ADD_CAT":
+      oldStorage.push(data);
+      localStorage.setItem("cats", JSON.stringify(data));
+      return;
+    case "ALL_CATS":
+      localStorage.setItem("cats", JSON.stringify(data));
+      setDataRefrash(5, "catsRefrash");
+      return;
+    case "DELETE_CAT":
+      const newStorage = oldStorage.filter((cat) => cat.id !== data);
+      localStorage.setItem("cats", JSON.stringify(newStorage));
+      return;
+    case "EDIT_CATS":
+      const updateStorage = oldStorage.map((cat) =>
+        cat.id === data.id ? data : cat
+      );
+      localStorage.setItem("cats", JSON.stringify(updateStorage));
+      return;
+
+    default:
+      break;
+  }
+}
+
+checkLocalStorage();
+
+btnOpenPopupForm.addEventListener("click", () => popupAddCat.open());
+btnLoginOpenPopup.addEventListener("click", () => popupLogin.open());
+formAddCat.addEventListener("submit", handleFormAddCat);
+formLogin.addEventListener("submit", handleFormLogin);
+
+const isAuth = Cookies.get("email");
+
+if (!isAuth) {
+  popupLogin.open();
+  btnOpenPopupForm.classList.add("visually-hidden");
+} else {
+  btnLoginOpenPopup.classList.add("visually-hidden");
+}
