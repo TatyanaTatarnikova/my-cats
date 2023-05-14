@@ -1,12 +1,18 @@
 .btn {
-     display: flex;
-     align-items: center;
-     justify-content: center;
-     border-radius: 10px;
-     padding: 6px 10px;
-     font-size: 18px;
-     gap: 10px;
-     border: none;
-     background-color: var(--bg-secondary-color);
-     color: var(--text-light-color);
- }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 20px;
+  gap: 10px;
+  border: none;
+  border-color: var(--bg-secondary-color);
+  color: var(--text-light-color);
+}
+
+.add__btn{
+    font-size: 30px;
+    color: aliceblue;
+    font-weight: bold;
+}

@@ -1,6 +1,8 @@
 .cards {
-     display: grid;
-     grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-     gap: 20px;
-     align-content: flex-start;
- }
+  display: grid;
+  /* grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); */
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  align-content: flex-start;
+}
